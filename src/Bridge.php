@@ -2,6 +2,16 @@
 
 namespace CubeKode\RoadRunner;
 
+use Closure;
+use Throwable;
+use Illuminate\Http\Request;
+use Spiral\RoadRunner\Worker;
+use Spiral\Goridge\StreamRelay;
+use Spiral\RoadRunner\PSR7Client;
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Redis\RedisServiceProvider;
+use Illuminate\Cookie\CookieServiceProvider;
+use Illuminate\Session\SessionServiceProvider;
 use Symfony\Bridge\PsrHttpMessage\Factory\DiactorosFactory;
 use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
 
@@ -12,88 +22,104 @@ class Bridge
      *
      * @var \Illuminate\Foundation\Application|null
      */
-    private $_app;
+    private $app;
 
     /**
      * Stores the kernel
      *
      * @var \Illuminate\Contracts\Http\Kernel|\Laravel\Lumen\Application
      */
-    private $_kernel;
+    private $kernel;
+
+    private $factory;
+
+    private function call(string $method): Closure
+    {
+        return Closure::fromCallable([$this, $method]);
+    }
+
+    private function authService($auth)
+    {
+        $auth->extend('session', $this->call('extendSession'));
+    }
+
+    private function extendSession($app, $name, $config)
+    {
+        $provider = $app['auth']->createUserProvider($config['provider']);
+        $guard = new SessionGuard($name, $provider, $app['session.store'], null, $app);
+        if (method_exists($guard, 'setCookieJar')) {
+            $guard->setCookieJar($this->app['cookie']);
+        }
+
+        if (method_exists($guard, 'setDispatcher')) {
+            $guard->setDispatcher($this->app['events']);
+        }
+
+        if (method_exists($guard, 'setRequest')) {
+            $guard->setRequest($this->app->refresh('request', $guard, 'setRequest'));
+        }
+
+        return $guard;
+    }
+
+    private function sessionStore()
+    {
+        return $this->app['session']->driver();
+    }
 
     private function prepareKernel()
     {
-        // Laravel 5 / Lumen
-        $isLaravel = true;
-        if (file_exists('bootstrap/app.php')) {
-            $this->_app = require_once 'bootstrap/app.php';
-            if (substr($this->_app->version(), 0, 5) === 'Lumen') {
-                $isLaravel = false;
-            }
-        }
-        // Laravel 4
-        if (file_exists('bootstrap/start.php')) {
-            $this->_app = require_once 'bootstrap/start.php';
-            $this->_app->boot();
-            return $this->_app;
-        }
-        if (!$this->_app) {
-            throw new \RuntimeException('Laravel bootstrap file not found');
-        }
-        $kernel = $this->_app->make($isLaravel ? 'Illuminate\Contracts\Http\Kernel' : 'Laravel\Lumen\Application');
-        $this->_app->afterResolving('auth', function ($auth) {
-            $auth->extend('session', function ($app, $name, $config) {
-                $provider = $app['auth']->createUserProvider($config['provider']);
-                $guard = new SessionGuard($name, $provider, $app['session.store'], null, $app);
-                if (method_exists($guard, 'setCookieJar')) {
-                    $guard->setCookieJar($this->_app['cookie']);
-                }
-                if (method_exists($guard, 'setDispatcher')) {
-                    $guard->setDispatcher($this->_app['events']);
-                }
-                if (method_exists($guard, 'setRequest')) {
-                    $guard->setRequest($this->_app->refresh('request', $guard, 'setRequest'));
-                }
-                return $guard;
-            });
-        });
-        $app = $this->_app;
-        $this->_app->extend('session.store', function () use ($app) {
-            $manager = $app['session'];
-            return $manager->driver();
-        });
-
-
-        $this->_kernel = $kernel;
+        $this->app = require_once 'bootstrap/app.php';
+        $this->kernel = $this->app->make(Kernel::class);
+        $this->app->afterResolving('auth', $this->call('authService'));
+        $this->app->extend('session.store', $this->call('sessionStore'));
     }
 
     public function start()
     {
         $this->prepareKernel();
 
-        $relay = new \Spiral\Goridge\StreamRelay(STDIN, STDOUT);
-        $psr7 = new \Spiral\RoadRunner\PSR7Client(new \Spiral\RoadRunner\Worker($relay));
-        $httpFoundationFactory = new HttpFoundationFactory();
+        $psr7 = new PSR7Client(
+            new Worker(
+                new StreamRelay(STDIN, STDOUT)
+            )
+        );
 
+        $this->factory = new HttpFoundationFactory();
+        $this->initializeWorker();
+    }
+
+    protected function readRequest($request)
+    {
+        return Request::createFromBase(
+            $this->factory->createRequest($req)
+        );
+    }
+
+    protected function handleRequest($request)
+    {
+        return (new DiactorosFactory)->createResponse(
+            $this->kernel->handle($request)
+        )
+    }
+
+    protected function initializeWorker()
+    {
         while ($req = $psr7->acceptRequest()) {
+            $response = $this->handleRequest(
+                $request = $this->readRequest($req)
+            );
 
-            $symfonyRequest = $httpFoundationFactory->createRequest($req);
-            $request = \Illuminate\Http\Request::createFromBase($symfonyRequest);
+            $psr7->respond($response);
+            $this->kernel->terminate($request, $response);
 
-            $response = $this->_kernel->handle($request);
-
-            $psr7factory = new DiactorosFactory();
-            $psr7response = $psr7factory->createResponse($response);
-            $psr7->respond($psr7response);
-
-            $this->_kernel->terminate($request, $response);
-
-            if (method_exists($this->_app, 'getProvider')) {
-                //reset debugbar if available
-                $this->resetProvider('\Illuminate\Redis\RedisServiceProvider');
-                $this->resetProvider('\Illuminate\Cookie\CookieServiceProvider');
-                $this->resetProvider('\Illuminate\Session\SessionServiceProvider');
+            if (!method_exists($this->app, 'getProvider')) {
+                return;
             }
+
+            $this->resetProvider(RedisServiceProvider::class);
+            $this->resetProvider(CookieServiceProvider::class);
+            $this->resetProvider(SessionServiceProvider::class);
         }
     }
 
@@ -102,16 +128,10 @@ class Bridge
         if (!$this->_app->getProvider($providerName)) {
             return;
         }
+
         $this->appRegister($providerName, true);
     }
 
-    /**
-     * Register application provider
-     * Workaround for BC break in https://github.com/laravel/framework/pull/25028
-     * @param string $providerName
-     * @param bool $force
-     * @throws \ReflectionException
-     */
     protected function appRegister($providerName, $force = false)
     {
         $this->_app->register($providerName, $force);

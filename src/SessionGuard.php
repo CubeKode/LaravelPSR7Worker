@@ -2,12 +2,13 @@
 
 namespace CubeKode\RoadRunner;
 
-use Illuminate\Contracts\Auth\UserProvider;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Application;
-use Symfony\Component\HttpFoundation\Request;
 use Illuminate\Contracts\Session\Session;
+use Illuminate\Contracts\Auth\UserProvider;
+use Symfony\Component\HttpFoundation\Request;
 
-class SessionGuard extends \Illuminate\Auth\SessionGuard
+class SessionGuard extends SessionGuard
 {
 
     /**
@@ -65,7 +66,7 @@ class SessionGuard extends \Illuminate\Auth\SessionGuard
      */
     public function getName()
     {
-        return 'login_'.$this->name.'_'.sha1(parent::class);
+        return 'login_' . $this->name . '_' . sha1(parent::class);
     }
 
     /**
@@ -75,7 +76,7 @@ class SessionGuard extends \Illuminate\Auth\SessionGuard
      */
     public function getRecallerName()
     {
-        return 'remember_'.$this->name.'_'.sha1(parent::class);
+        return 'remember_' . $this->name . '_' . sha1(parent::class);
     }
 
     /**
