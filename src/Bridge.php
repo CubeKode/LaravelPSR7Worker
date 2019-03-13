@@ -21,14 +21,6 @@ class Bridge
      */
     private $_kernel;
 
-    /**
-     * Laravel Application->register() parameter count
-     *
-     * @var int
-     */
-    private $appRegisterParameters;
-
-
     private function prepareKernel()
     {
         // Laravel 5 / Lumen
@@ -122,14 +114,6 @@ class Bridge
      */
     protected function appRegister($providerName, $force = false)
     {
-        if (!$this->appRegisterParameters) {
-            $method = new \ReflectionMethod(get_class($this->_app), 'register');
-            $this->appRegisterParameters = count($method->getParameters());
-        }
-        if ($this->appRegisterParameters == 3) {
-            $this->_app->register($providerName, [], $force);
-        } else {
-            $this->_app->register($providerName, $force);
-        }
+        $this->_app->register($providerName, $force);
     }
 }
