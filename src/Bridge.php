@@ -100,7 +100,7 @@ class Bridge
     {
         return (new DiactorosFactory)->createResponse(
             $this->kernel->handle($request)
-        )
+        );
     }
 
     protected function resetProviders()
@@ -129,7 +129,7 @@ class Bridge
     {
         while ($req = $psr7->acceptRequest()) {
             try {
-                $this->workerRoutine($req)
+                $this->workerRoutine($req);
 
             } catch (Throwable $exception) {
                 // Silence is golden
@@ -139,7 +139,7 @@ class Bridge
 
     protected function resetProvider($providerName)
     {
-        if (!$this->_app->getProvider($providerName)) {
+        if (!$this->app->getProvider($providerName)) {
             return;
         }
 
@@ -148,6 +148,6 @@ class Bridge
 
     protected function appRegister($providerName, $force = false)
     {
-        $this->_app->register($providerName, $force);
+        $this->app->register($providerName, $force);
     }
 }
