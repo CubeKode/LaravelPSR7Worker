@@ -103,23 +103,37 @@ class Bridge
         )
     }
 
+    protected function resetProviders()
+    {
+        if (!method_exists($this->app, 'getProvider')) {
+            return;
+        }
+
+        $this->resetProvider(RedisServiceProvider::class);
+        $this->resetProvider(CookieServiceProvider::class);
+        $this->resetProvider(SessionServiceProvider::class);
+    }
+
+    protected function workerRoutine($req)
+    {
+        $response = $this->handleRequest(
+            $request = $this->readRequest($req)
+        );
+
+        $psr7->respond($response);
+        $this->kernel->terminate($request, $response);
+        $this->resetProviders();
+    }
+
     protected function initializeWorker()
     {
         while ($req = $psr7->acceptRequest()) {
-            $response = $this->handleRequest(
-                $request = $this->readRequest($req)
-            );
+            try {
+                $this->workerRoutine($req)
 
-            $psr7->respond($response);
-            $this->kernel->terminate($request, $response);
-
-            if (!method_exists($this->app, 'getProvider')) {
-                return;
+            } catch (Throwable $exception) {
+                // Silence is golden
             }
-
-            $this->resetProvider(RedisServiceProvider::class);
-            $this->resetProvider(CookieServiceProvider::class);
-            $this->resetProvider(SessionServiceProvider::class);
         }
     }
 
