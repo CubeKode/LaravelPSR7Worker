@@ -2,13 +2,13 @@
 
 namespace CubeKode\RoadRunner;
 
-use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Application;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Contracts\Auth\UserProvider;
 use Symfony\Component\HttpFoundation\Request;
+use Illuminate\Auth\SessionGuard as LaravelSessionGuard;
 
-class SessionGuard extends SessionGuard
+class SessionGuard extends LaravelSessionGuard
 {
 
     /**

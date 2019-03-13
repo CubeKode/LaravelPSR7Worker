@@ -86,13 +86,13 @@ class Bridge
         );
 
         $this->factory = new HttpFoundationFactory();
-        $this->initializeWorker();
+        $this->initializeWorker($psr7);
     }
 
     protected function readRequest($request)
     {
         return Request::createFromBase(
-            $this->factory->createRequest($req)
+            $this->factory->createRequest($request)
         );
     }
 
@@ -114,7 +114,7 @@ class Bridge
         $this->resetProvider(SessionServiceProvider::class);
     }
 
-    protected function workerRoutine($req)
+    protected function workerRoutine($psr7, $req)
     {
         $response = $this->handleRequest(
             $request = $this->readRequest($req)
@@ -125,14 +125,14 @@ class Bridge
         $this->resetProviders();
     }
 
-    protected function initializeWorker()
+    protected function initializeWorker($psr7)
     {
         while ($req = $psr7->acceptRequest()) {
             try {
-                $this->workerRoutine($req);
+                $this->workerRoutine($psr7, $req);
 
             } catch (Throwable $exception) {
-                // Silence is golden
+                $psr7->getWorker()->error((string) $exception);
             }
         }
     }
