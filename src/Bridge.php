@@ -1,6 +1,6 @@
 <?php
 
-namespace updg\roadrunner\laravel;
+namespace CubeKode\RoadRunner;
 
 use Symfony\Bridge\PsrHttpMessage\Factory\DiactorosFactory;
 use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;

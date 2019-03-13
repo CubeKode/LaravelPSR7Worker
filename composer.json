@@ -1,7 +1,12 @@
 {
-  "name": "updg/roadrunner-laravel",
+  "name": "cubekode/roadrunner-laravel",
   "license": "MIT",
   "authors": [
+    {
+      "name": "CubeKode Tecnologia",
+      "email": "contato@cubekode.com",
+      "homepage": "https://cubekode.com"
+    },
     {
       "name": "Alex Bond",
       "email": "me@alexbond.info"
@@ -16,12 +21,11 @@
     "symfony/psr-http-message-bridge": "^1.1"
   },
   "suggest": {
-    "laravel/framework": "Can work with Laravel 4 and Laravel 5",
-    "laravel/lumen": "Can work with Lumen 4 and Lumen 5"
+    "laravel/framework": "Can work with Laravel 5"
   },
   "autoload": {
     "psr-4": {
-      "updg\\roadrunner\\laravel\\": "src/"
+      "CubeKode\\RoadRunner\\": "src/"
     }
   }
 }
