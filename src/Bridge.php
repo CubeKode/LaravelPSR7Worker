@@ -132,7 +132,7 @@ class Bridge
                 $this->workerRoutine($psr7, $req);
 
             } catch (Throwable $exception) {
-                $psr7->getWorker()->error((string) $exception);
+                // Silence is golden
             }
         }
     }
