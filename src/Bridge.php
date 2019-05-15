@@ -66,13 +66,12 @@ class Bridge
 
     private function sessionStore()
     {
-        $session = $this->app['session']->driver();
-        if ($this->initialized) {
-            $this->app['redirect']->setSession($session);
-        }
+        return $this->app['session']->driver();
+    }
 
-        $this->initialized = true;
-        return $session;
+    private function updateStore($session)
+    {
+        $this->app['redirect']->setSession($session);
     }
 
     private function prepareKernel()
@@ -81,6 +80,7 @@ class Bridge
         $this->kernel = $this->app->make(Kernel::class);
         $this->app->afterResolving('auth', $this->call('authService'));
         $this->app->extend('session.store', $this->call('sessionStore'));
+        $this->app->afterResolving('session.store', $this->call('updateStore'));
     }
 
     public function start()
