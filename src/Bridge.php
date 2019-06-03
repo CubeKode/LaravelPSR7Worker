@@ -33,8 +33,6 @@ class Bridge
 
     private $factory;
 
-    private $initialized = false;
-
     private function call(string $method): Closure
     {
         return Closure::fromCallable([$this, $method]);
@@ -71,6 +69,10 @@ class Bridge
 
     private function updateStore($session)
     {
+        if ($this->app->resolved('redirect')) {
+            return;
+        }
+
         $this->app['redirect']->setSession($session);
     }
 
