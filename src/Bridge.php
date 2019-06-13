@@ -69,7 +69,7 @@ class Bridge
 
     private function updateStore($session)
     {
-        if ($this->app->resolved('redirect')) {
+        if (!$this->app->resolved('redirect')) {
             return;
         }
 
