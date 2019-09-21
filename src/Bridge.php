@@ -96,7 +96,17 @@ class Bridge
         );
 
         $this->factory = new HttpFoundationFactory();
+        $this->registerSymfonyWorkaround();
         $this->initializeWorker($psr7);
+    }
+
+    protected function registerSymfonyWorkaround()
+    {
+        if (function_exists('\\Symfony\\Component\\HttpFoundation\\File\\is_uploaded_file')) {
+            return;
+        }
+
+        require dirname(__DIR__) . '/fixes/is-uploaded-file.php';
     }
 
     protected function readRequest($request)
